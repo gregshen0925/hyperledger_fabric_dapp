@@ -1,0 +1,30 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# ---------------------------------------------------------------------------
+# "OrdererOrgs" - Definition of organizations managing orderer nodes
+# ---------------------------------------------------------------------------
+OrdererOrgs:
+  # ---------------------------------------------------------------------------
+  # Orderer
+  # ---------------------------------------------------------------------------
+  - Name: Orderer
+    Domain: cathaybc.com
+    EnableNodeOUs: true
+
+    Specs:
+      - Hostname: orderer1
+        SANS:
+            - localhost
+            - "127.0.0.1"
+      - Hostname: orderer2
+        SANS:
+            - localhost
+            - "127.0.0.1"
+      - Hostname: orderer3
+        SANS:
+            - localhost
+            - "127.0.0.1"
+

@@ -1,0 +1,140 @@
+export PATH=${PWD}/../bin/linux-amd64:$PATH
+
+#產生orderer憑證
+cryptogen generate --config=./config/crypto-config-orderer.yaml --output=./crypto-config
+
+#產生peer憑證
+cryptogen generate --config=./config/crypto-config-org.yaml --output=./crypto-config
+
+#產生創世區塊
+configtxgen -configPath ./config -profile OrderersGenesis -channelID system-channel -outputBlock ./system-genesis-block/genesis.block
+
+export FABRIC_CFG_PATH=$PWD/config/
+
+#產生create application channel文件
+configtxgen -configPath ./config -profile ThreeOrgsChannel -outputCreateChannelTx ../channel-artifacts/cathay.tx -channelID cathay
+
+#產生update anchor peer文件
+configtxgen -configPath ./config -profile ThreeOrgsChannel -outputAnchorPeersUpdate ./channel-artifacts/org1Anchors.tx -channelID cathay -asOrg Org1MSP
+configtxgen -configPath ./config -profile ThreeOrgsChannel -outputAnchorPeersUpdate ./channel-artifacts/org2Anchors.tx -channelID cathay -asOrg Org2MSP
+configtxgen -configPath ./config -profile ThreeOrgsChannel -outputAnchorPeersUpdate ./channel-artifacts/org3Anchors.tx -channelID cathay -asOrg Org3MSP
+
+
+//peer1
+#進入docker container
+docker exec -it peer1.org1.cathaybc.com sh
+
+#設定使用admin憑證
+export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/crypto-config/peerOrganizations/org1.cathaybc.com/users/Admin@org1.cathaybc.com/msp/
+
+#建立channel
+peer channel create -o orderer1.cathaybc.com:7050 -c cathay -f ./channel-artifacts/cathay.tx --outputBlock ./channel-artifacts/cathay.block --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#加入channel
+peer channel join -b ./channel-artifacts/cathay.block
+
+#更新anchor peer
+peer channel update -o orderer1.cathaybc.com:7050 -c cathay -f ./channel-artifacts/org1Anchors.tx --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+
+#################################### Chaincode  ####################################
+
+#打包
+peer lifecycle chaincode package chaincode.tar.gz --path /chaincode --lang golang --label chaincode_1
+
+#安裝
+peer lifecycle chaincode install chaincode.tar.gz
+
+#查看安裝
+peer lifecycle chaincode queryinstalled
+
+#批准
+peer lifecycle chaincode approveformyorg -o orderer1.cathaybc.com:7050 --channelID cathay --name chaincode --version 1 --init-required --package-id chaincode_1:6ec3703552148fc033a2a783c28883074348fba864cb52a84ef3991f3236f95b --sequence 1 --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#查看批准狀態
+peer lifecycle chaincode checkcommitreadiness --channelID cathay --name chaincode --version 1 --sequence 1 --output json --init-required
+
+
+
+//peer2
+#進入docker container
+docker exec -it peer2.org2.cathaybc.com sh
+
+#設定使用admin憑證
+export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/crypto-config/peerOrganizations/org2.cathaybc.com/users/Admin@org2.cathaybc.com/msp/
+
+#加入channel
+peer channel join -b ./channel-artifacts/cathay.block
+
+#更新anchor peer
+peer channel update -o orderer1.cathaybc.com:7050 -c cathay -f ./channel-artifacts/org2Anchors.tx --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+
+#################################### Chaincode 相關 ####################################
+
+#打包
+peer lifecycle chaincode package chaincode.tar.gz --path /chaincode --lang golang --label chaincode_1
+
+#安裝
+peer lifecycle chaincode install chaincode.tar.gz
+
+#查看安裝
+peer lifecycle chaincode queryinstalled
+
+#批准
+peer lifecycle chaincode approveformyorg -o orderer1.cathaybc.com:7050 --channelID cathay --name chaincode --version 1 --init-required --package-id chaincode_1:6ec3703552148fc033a2a783c28883074348fba864cb52a84ef3991f3236f95b --sequence 1 --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#查看批准狀態
+peer lifecycle chaincode checkcommitreadiness --channelID cathay --name chaincode --version 1 --sequence 1 --output json --init-required
+
+
+
+//peer3
+#進入docker container
+docker exec -it peer3.org3.cathaybc.com sh
+
+#設定使用admin憑證
+export CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/crypto-config/peerOrganizations/org3.cathaybc.com/users/Admin@org3.cathaybc.com/msp/
+
+#加入channel
+peer channel join -b ./channel-artifacts/cathay.block
+
+#更新anchor peer
+peer channel update -o orderer1.cathaybc.com:7050 -c cathay -f ./channel-artifacts/org3Anchors.tx --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+
+#################################### Chaincode 相關 ####################################
+
+#打包
+peer lifecycle chaincode package chaincode.tar.gz --path /chaincode --lang golang --label chaincode_1
+
+#安裝
+peer lifecycle chaincode install chaincode.tar.gz
+
+#查看安裝
+peer lifecycle chaincode queryinstalled
+
+#批准
+peer lifecycle chaincode approveformyorg -o orderer1.cathaybc.com:7050 --channelID cathay --name chaincode --version 1 --init-required --package-id chaincode_1:6ec3703552148fc033a2a783c28883074348fba864cb52a84ef3991f3236f95b --sequence 1 --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#查看批准狀態
+peer lifecycle chaincode checkcommitreadiness --channelID cathay --name chaincode --version 1 --sequence 1 --output json --init-required
+
+
+
+
+
+#提交
+peer lifecycle chaincode commit -o orderer1.cathaybc.com:7050 --channelID cathay --name chaincode --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt --peerAddresses peer1.org1.cathaybc.com:7053 --tlsRootCertFiles  ./crypto-config/peerOrganizations/org1.cathaybc.com/peers/peer1.org1.cathaybc.com/tls/ca.crt --peerAddresses peer2.org2.cathaybc.com:7055 --tlsRootCertFiles  ./crypto-config/peerOrganizations/org2.cathaybc.com/peers/peer2.org2.cathaybc.com/tls/ca.crt --peerAddresses peer3.org3.cathaybc.com:7057 --tlsRootCertFiles  ./crypto-config/peerOrganizations/org3.cathaybc.com/peers/peer3.org3.cathaybc.com/tls/ca.crt --version 1 --sequence 1 --init-required
+
+#查看提交
+peer lifecycle chaincode querycommitted --channelID cathay --name chaincode
+
+#初始化
+peer chaincode invoke -o orderer1.cathaybc.com:7050 -C cathay -n chaincode --peerAddresses peer1.org1.cathaybc.com:7053 --tlsRootCertFiles ./crypto-config/peerOrganizations/org1.cathaybc.com/peers/peer1.org1.cathaybc.com/tls/ca.crt --peerAddresses peer2.org2.cathaybc.com:7055 --tlsRootCertFiles ./crypto-config/peerOrganizations/org2.cathaybc.com/peers/peer2.org2.cathaybc.com/tls/ca.crt --isInit -c '{"function":"InitLedger","Args":[]}' --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#Query example
+peer chaincode query -o orderer1.cathaybc.com:7050 -C cathay -n chaincode -c '{"function":"GetUserList","Args":[]}' --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt
+
+#Invoke example
+peer chaincode invoke -o orderer1.cathaybc.com:7050 -C cathay -n chaincode -c '{"function":"UserExists","Args":["1"]}' --tls --cafile ./crypto-config/ordererOrganizations/cathaybc.com/orderers/orderer1.cathaybc.com/tls/ca.crt

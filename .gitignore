@@ -1,0 +1,5 @@
+channel-artifacts/
+genesis.block
+log.txt
+*.tar.gz
+crypto-config/
